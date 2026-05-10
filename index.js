@@ -1,0 +1,73 @@
+const dns = require("node:dns");
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+
+require("dotenv").config();
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const express = require("express");
+const app = express();
+const port = process.env.PORT || 5000;
+const cors = require("cors");
+
+// middleware
+app.use(cors());
+app.use(express.json());
+
+const uri = process.env.DESTINATION_URI;
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
+
+async function run() {
+  try {
+    await client.connect();
+    await client.db("admin").command({ ping: 1 });
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!",
+    );
+
+    //database
+    const database = client.db("wanderlust");
+    const destinationCollection = database.collection("destination");
+
+    // create api
+
+    app.get("/destination", async (req, res) => {
+      const result = await destinationCollection.find().toArray();
+      res.send(result);
+    });
+
+    // page details
+    app.get("/destination/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await destinationCollection.findOne(query);
+      res.send(result);
+    });
+
+    // post
+    app.post("/destination", async (req, res) => {
+      const destination = req.body;
+      const result = await destinationCollection.insertOne(destination);
+      res.send(result);
+    });
+
+    ///
+  } finally {
+    // await client.close();
+  }
+}
+run().catch(console.dir);
+
+app.get("/", (req, res) => {
+  res.send("Hello World!");
+});
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`);
+});
