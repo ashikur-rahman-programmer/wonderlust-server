@@ -50,6 +50,19 @@ async function run() {
       res.send(result);
     });
 
+    // edit post
+    app.patch("/destination/:id", async (req, res) => {
+      const id = req.params.id;
+      const destination = req.body;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const updateDoc = {
+        $set: destination,
+      };
+      const result = await destinationCollection.updateOne(query, updateDoc);
+    });
+
     // post
     app.post("/destination", async (req, res) => {
       const destination = req.body;
