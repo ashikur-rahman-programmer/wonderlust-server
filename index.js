@@ -32,6 +32,7 @@ async function run() {
     //database
     const database = client.db("wanderlust");
     const destinationCollection = database.collection("destination");
+    const bookingCollection = database.collection("booking");
 
     // create api
 
@@ -78,6 +79,30 @@ async function run() {
         _id: new ObjectId(id),
       };
       const result = await destinationCollection.deleteOne(destination, query);
+      res.send(result);
+    });
+
+    // booking api
+    app.post("/booking", async (req, res) => {
+      const booking = req.body;
+      const result = await bookingCollection.insertOne(booking);
+      res.send(result);
+    });
+
+    // get booking
+
+    app.get("/booking/:userId", async (req, res) => {
+      const { userId } = req.params;
+      const result = await bookingCollection.find({ userId }).toArray();
+      res.send(result);
+    });
+
+    // booking cancel / delete
+    app.delete("/booking/:bookingId", async (req, res) => {
+      const { bookingId } = req.params;
+
+      const query = { _id: bookingId };
+      const result = await bookingCollection.deleteOne(query);
       res.send(result);
     });
 
