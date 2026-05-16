@@ -7,6 +7,7 @@ const express = require("express");
 const app = express();
 const port = process.env.PORT || 5000;
 const cors = require("cors");
+const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 
 // middleware
 app.use(cors());
@@ -21,10 +22,36 @@ const client = new MongoClient(uri, {
   },
 });
 
+// authrization
+
+const JWKS = createRemoteJWKSet(new URL(`${NEXT_PUBLIC_URL}/api/auth/jwks`));
+
+const verifyToken = async (req, res, next) => {
+  const authHeader = req?.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    console.log(payload);
+
+    next();
+  } catch (error) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+};
+
 async function run() {
   try {
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
+    // await client.connect();
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
     );
@@ -42,7 +69,7 @@ async function run() {
     });
 
     // page details
-    app.get("/destination/:id", async (req, res) => {
+    app.get("/destination/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = {
         _id: new ObjectId(id),
@@ -62,6 +89,7 @@ async function run() {
         $set: destination,
       };
       const result = await destinationCollection.updateOne(query, updateDoc);
+      res.send(result);
     });
 
     // post
@@ -91,9 +119,17 @@ async function run() {
 
     // get booking
 
-    app.get("/booking/:userId", async (req, res) => {
+    app.get("/booking/:userId", verifyToken, async (req, res) => {
       const { userId } = req.params;
       const result = await bookingCollection.find({ userId }).toArray();
+      res.send(result);
+    });
+
+    // post
+
+    app.post("/booking", async (req, res) => {
+      const booking = req.body;
+      const result = await bookingCollection.insertOne(booking);
       res.send(result);
     });
 
